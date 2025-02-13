@@ -121,6 +121,14 @@ class Provider(BaseProvider):
             return cast_to(generated_uuid)
         return generated_uuid
 
+import random
+import string
+from typing import Set
+
+class PasswordGenerator:
+    def __init__(self):
+        self.generator = random
+
     def password(
         self,
         length: int = 10,
@@ -141,36 +149,38 @@ class Provider(BaseProvider):
         :sample: length=12
         :sample: length=40, special_chars=False, upper_case=False
         """
-        choices = ""
         required_tokens = []
+        available_tokens = ""
+
         if special_chars:
-            required_tokens.append(self.generator.random.choice("!@#$%^&*()_+"))
-            choices += "!@#$%^&*()_+"
+            required_tokens.append(self.generator.choice("!@#$%^&*()_+"))
+            available_tokens += "!@#$%^&*()_+"
         if digits:
-            required_tokens.append(self.generator.random.choice(string.digits))
-            choices += string.digits
+            required_tokens.append(self.generator.choice(string.digits))
+            available_tokens += string.digits
         if upper_case:
-            required_tokens.append(self.generator.random.choice(string.ascii_uppercase))
-            choices += string.ascii_uppercase
+            required_tokens.append(self.generator.choice(string.ascii_uppercase))
+            available_tokens += string.ascii_uppercase
         if lower_case:
-            required_tokens.append(self.generator.random.choice(string.ascii_lowercase))
-            choices += string.ascii_lowercase
+            required_tokens.append(self.generator.choice(string.ascii_lowercase))
+            available_tokens += string.ascii_lowercase
 
-        assert len(required_tokens) <= length, "Required length is shorter than required characters"
+        # If the required tokens exceed the requested length, adjust the length
+        if len(required_tokens) > length:
+            length = len(required_tokens)
 
-        # Generate a first version of the password
-        chars: str = self.random_choices(choices, length=length)  # type: ignore
+        # Create the password starting with the mandatory required tokens
+        chars = required_tokens.copy()
 
-        # Pick some unique locations
-        random_indexes: Set[int] = set()
-        while len(random_indexes) < len(required_tokens):
-            random_indexes.add(self.generator.random.randint(0, len(chars) - 1))
+        # Add random characters from the available pool until the password reaches the requested length
+        while len(chars) < length:
+            chars.append(self.generator.choice(available_tokens))
 
-        # Replace them with the required characters
-        for i, index in enumerate(random_indexes):
-            chars[index] = required_tokens[i]  # type: ignore
+        # Shuffle the characters to avoid predictable patterns and ensure randomness
+        self.generator.shuffle(chars)
 
-        return "".join(chars)
+        # Return the password as a string, truncated to the desired length
+        return ''.join(chars[:length])
 
     def zip(
         self,
